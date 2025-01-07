@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Finanztracker mit Bezeichnungssuche (Tanken etc.)</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    h1, h2, h3 {
+      margin-bottom: 0.3em;
+    }
+    select, button {
+      margin-right: 10px;
+      padding: 5px 8px;
+    }
+    table {
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      margin-right: 20px;
+      float: left;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      background-color: #f5f5f5;
+      font-weight: bold;
+    }
+    input[type="number"] {
+      width: 80px;
+      text-align: right;
+    }
+    .clearfix {
+      clear: both;
+    }
+    .sum-field {
+      font-weight: bold;
+      text-align: right;
+    }
+    .total-section {
+      clear: both;
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      width: 60%;
+    }
+    .category-title {
+      background-color: #eaeaea;
+      text-align: center;
+    }
+    tr:hover {
+      background-color: #f9f9f9;
+    }
+    .month-select-area {
+      margin-bottom: 20px;
+    }
+    /* Tabellen für die Jahresübersicht */
+    #yearOverviewTable, #yearFixCategoryTable, #yearVarCategoryTable {
+      margin-top: 20px;
+      float: left;
+      clear: both;
+    }
+    #yearFixCategoryTable, #yearVarCategoryTable {
+      width: 50%;
+    }
+    .add-row-btn {
+      display: block;
+      margin-bottom: 10px;
+      float: left;
+    }
+    /* Bereich für die Bezeichnungssuche */
+    .custom-bezeichnung-area {
+      clear: both;
+      margin-top: 30px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      width: 60%;
+    }
+    .custom-bezeichnung-area input {
+      width: 200px;
+      margin-right: 10px;
+    }
+    .custom-bezeichnung-results p {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Finanztracker (Monatsauswahl + Jahresübersicht + Zeile hinzufügen + Bezeichnungssuche)</h1>
+
+<div class="month-select-area">
+  <label for="monthSelect"><strong>Monat auswählen:</strong></label>
+  <select id="monthSelect">
+    <option value="Januar">Januar</option>
+    <option value="Februar">Februar</option>
+    <option value="März">März</option>
+    <option value="April">April</option>
+    <option value="Mai">Mai</option>
+    <option value="Juni">Juni</option>
+    <option value="Juli">Juli</option>
+    <option value="August">August</option>
+    <option value="September">September</option>
+    <option value="Oktober">Oktober</option>
+    <option value="November">November</option>
+    <option value="Dezember">Dezember</option>
+  </select>
+  <button onclick="loadMonthData()">Monat laden</button>
+  <button onclick="saveMonthData()">Monat speichern + berechnen</button>
+  <button onclick="updateYearOverview()">Jahresübersicht aktualisieren</button>
+</div>
+
+<!-- EINNAHMEN -->
+<button class="add-row-btn" onclick="addRow('tableEinnahmen')">Zeile hinzufügen (Einnahmen)</button>
+<table id="tableEinnahmen">
+  <tr><th colspan="4" class="category-title">Einnahmen</th></tr>
+  <tr>
+    <th>Datum</th>
+    <th>Kategorie</th>
+    <th>Betrag</th>
+    <th>Notiz</th>
+  </tr>
+</table>
+
+<div class="clearfix"></div>
+
+<!-- FIXKOSTEN -->
+<button class="add-row-btn" onclick="addRow('tableFixkosten')">Zeile hinzufügen (Fixkosten)</button>
+<table id="tableFixkosten">
+  <tr><th colspan="5" class="category-title">Fixkosten</th></tr>
+  <tr>
+    <th>Datum</th>
+    <th>Kategorie</th>
+    <th>Bezeichnung</th>
+    <th>Betrag</th>
+    <th>Notiz</th>
+  </tr>
+</table>
+
+<div class="clearfix"></div>
+
+<!-- VARIABLE KOSTEN -->
+<button class="add-row-btn" onclick="addRow('tableVarKosten')">Zeile hinzufügen (Variable Kosten)</button>
+<table id="tableVarKosten">
+  <tr><th colspan="5" class="category-title">Variable Kosten</th></tr>
+  <tr>
+    <th>Datum</th>
+    <th>Kategorie</th>
+    <th>Bezeichnung</th>
+    <th>Betrag</th>
+    <th>Notiz</th>
+  </tr>
+</table>
+
+<div class="clearfix"></div>
+
+<!-- SPAREN -->
+<button class="add-row-btn" onclick="addRow('tableSparen')">Zeile hinzufügen (Sparen)</button>
+<table id="tableSparen">
+  <tr><th colspan="3" class="category-title">Sparen (+ oder -)</th></tr>
+  <tr>
+    <th>Datum</th>
+    <th>Betrag</th>
+    <th>Notiz</th>
+  </tr>
+</table>
+
+<div class="clearfix"></div>
+
+<!-- Ergebnis-Anzeige (Summe für gewählten Monat) -->
+<div class="total-section" id="ergebnisAnzeige">
+  <h3>Monatsbilanz (<span id="currentMonthLabel">Januar</span>)</h3>
+  <p><strong>Einnahmen gesamt:</strong> <span id="sumEinnahmen">0</span> €</p>
+  <p><strong>Fixkosten gesamt:</strong> <span id="sumFixkosten">0</span> €</p>
+  <p><strong>Variable Kosten gesamt:</strong> <span id="sumVarKosten">0</span> €</p>
+  <p><strong>Sparen gesamt:</strong> <span id="sumSparen">0</span> €</p>
+  <hr/>
+  <p><strong>Summe Ausgaben (Fix + Variabel):</strong> <span id="sumAusgaben">0</span> €</p>
+  <p><strong>Überschuss / Defizit:</strong> <span id="ueberschussDefizit">0</span> €</p>
+</div>
+
+<!-- Jahresübersicht (Tabelle pro Monat) -->
+<table id="yearOverviewTable">
+  <tr>
+    <th>Monat</th>
+    <th>Einnahmen</th>
+    <th>Fixkosten</th>
+    <th>Variable Kosten</th>
+    <th>Sparen</th>
+    <th>Ausgaben gesamt</th>
+    <th>Überschuss/Defizit</th>
+  </tr>
+</table>
+
+<!-- Jahresübersicht: Fixkosten nach Kategorien -->
+<table id="yearFixCategoryTable">
+  <tr>
+    <th colspan="2" class="category-title">Fixkosten (Jahressumme pro Kategorie)</th>
+  </tr>
+  <tr>
+    <th>Kategorie</th>
+    <th>Summe (€)</th>
+  </tr>
+</table>
+
+<!-- Jahresübersicht: Variable Kosten nach Kategorien -->
+<table id="yearVarCategoryTable">
+  <tr>
+    <th colspan="2" class="category-title">Variable Kosten (Jahressumme pro Kategorie)</th>
+  </tr>
+  <tr>
+    <th>Kategorie</th>
+    <th>Summe (€)</th>
+  </tr>
+</table>
+
+<!-- NEUER BEREICH: Bezeichnungssuche -->
+<div class="custom-bezeichnung-area">
+  <h3>Bezeichnungssuche</h3>
+  <p>
+    Gib hier eine Bezeichnung (z.B. <em>"Tanken"</em>) ein, um zu sehen,
+    was du in diesem Monat und im gesamten Jahr für diese Bezeichnung ausgegeben hast.
+  </p>
+  <input type="text" id="customBezeichnungInput" placeholder="Tanken..." />
+  <button onclick="calculateBezeichnungSums()">Bezeichnungssumme berechnen</button>
+
+  <div class="custom-bezeichnung-results">
+    <p><strong>Im aktuellen Monat:</strong> <span id="customBezeichnungMonthly">0.00</span> €</p>
+    <p><strong>Im gesamten Jahr:</strong> <span id="customBezeichnungYearly">0.00</span> €</p>
+  </div>
+</div>
+
+<script>
+  // ----------------------------
+  // KONFIGURATION
+  // ----------------------------
+  const months = [
+    "Januar","Februar","März","April","Mai","Juni",
+    "Juli","August","September","Oktober","November","Dezember"
+  ];
+
+  // Fixkosten-Kategorien (Dropdown)
+  const fixCat = [
+    "Wohnen",
+    "Lebensmittel",
+    "Versicherungen",
+    "Auto",
+    "Kommunikation & Medien",
+    "Finanzprodukte & Kredite",
+    "Altersvorsorge & Sparraten",
+    "Sonstige Abos & Mitgliedschaften"
+  ];
+
+  // Variable Kosten-Kategorien (Dropdown)
+  const varCat = [
+    "Lebensmittel & Haushaltsbedarf",
+    "Mobilität & Transport",
+    "Gesundheit & Körperpflege",
+    "Freizeit & Entertainment",
+    "Geschenke & Spenden",
+    "Sonstiges"
+  ];
+
+  window.addEventListener('load', () => {
+    // Standard auf "Januar" setzen
+    document.getElementById('monthSelect').value = "Januar";
+    document.getElementById('currentMonthLabel').textContent = "Januar";
+  });
+
+  // ----------------------------
+  // MONAT LADEN / SPEICHERN
+  // ----------------------------
+  function getSelectedMonth() {
+    return document.getElementById('monthSelect').value;
+  }
+
+  function loadMonthData() {
+    let month = getSelectedMonth();
+    let storageKey = "finanzTrackerData_" + month;
+
+    // Tabellen leeren
+    clearTable('tableEinnahmen', 4);
+    clearTable('tableFixkosten', 5);
+    clearTable('tableVarKosten', 5);
+    clearTable('tableSparen', 3);
+
+    // localStorage laden
+    let jsonData = localStorage.getItem(storageKey);
+    if (jsonData) {
+      let data = JSON.parse(jsonData);
+      fillTableData('tableEinnahmen', data.einnahmen, 4);
+      fillTableData('tableFixkosten', data.fixkosten, 5);
+      fillTableData('tableVarKosten', data.varkosten, 5);
+      fillTableData('tableSparen', data.sparen, 3);
+    }
+    // Monatslabel aktualisieren
+    document.getElementById('currentMonthLabel').textContent = month;
+    // Monatsbilanz auf 0
+    resetMonthSums();
+
+    // Bezeichnungssuche reset
+    document.getElementById('customBezeichnungMonthly').textContent = "0.00";
+  }
+
+  function saveMonthData() {
+    let month = getSelectedMonth();
+    let storageKey = "finanzTrackerData_" + month;
+
+    // Tabellen auslesen
+    let dataObj = {
+      einnahmen: readTableData('tableEinnahmen', 4),
+      fixkosten: readTableData('tableFixkosten', 5),
+      varkosten: readTableData('tableVarKosten', 5),
+      sparen:    readTableData('tableSparen', 3)
+    };
+
+    localStorage.setItem(storageKey, JSON.stringify(dataObj));
+
+    // Summen berechnen
+    calculateMonthSums();
+  }
+
+  // ----------------------------
+  // Z E I L E   H I N Z U F Ü G E N
+  // ----------------------------
+  function addRow(tableId) {
+    let table = document.getElementById(tableId);
+    let colCount = 0;
+    switch(tableId) {
+      case 'tableEinnahmen': colCount = 4; break;
+      case 'tableFixkosten': colCount = 5; break;
+      case 'tableVarKosten': colCount = 5; break;
+      case 'tableSparen':    colCount = 3; break;
+    }
+
+    // Neue Zeile
+    let newRow = table.insertRow(-1);
+
+    if (tableId === 'tableEinnahmen') {
+      // (1) Datum, (2) Kategorie (text), (3) Betrag (number), (4) Notiz
+      newRow.insertCell(0).innerHTML = `<input type="date">`;
+      newRow.insertCell(1).innerHTML = `<input type="text" placeholder="Gehalt, Unterhalt...">`;
+      newRow.insertCell(2).innerHTML = `<input type="number" step="0.01">`;
+      newRow.insertCell(3).innerHTML = `<input type="text">`;
+    }
+    else if (tableId === 'tableFixkosten') {
+      // (1) Datum, (2) Kategorie (select), (3) Bezeichnung, (4) Betrag, (5) Notiz
+      let catOptions = fixCat.map(c => `<option>${c}</option>`).join('');
+      let selectHtml = `<select><option value="">- bitte wählen -</option>${catOptions}</select>`;
+      newRow.insertCell(0).innerHTML = `<input type="date">`;
+      newRow.insertCell(1).innerHTML = selectHtml;
+      newRow.insertCell(2).innerHTML = `<input type="text" placeholder="z.B. Miete, Strom...">`;
+      newRow.insertCell(3).innerHTML = `<input type="number" step="0.01">`;
+      newRow.insertCell(4).innerHTML = `<input type="text">`;
+    }
+    else if (tableId === 'tableVarKosten') {
+      // (1) Datum, (2) Kategorie (select), (3) Bezeichnung, (4) Betrag, (5) Notiz
+      let catOptions = varCat.map(c => `<option>${c}</option>`).join('');
+      let selectHtml = `<select><option value="">- bitte wählen -</option>${catOptions}</select>`;
+      newRow.insertCell(0).innerHTML = `<input type="date">`;
+      newRow.insertCell(1).innerHTML = selectHtml;
+      newRow.insertCell(2).innerHTML = `<input type="text" placeholder="z.B. Restaurant, Kino ...">`;
+      newRow.insertCell(3).innerHTML = `<input type="number" step="0.01">`;
+      newRow.insertCell(4).innerHTML = `<input type="text">`;
+    }
+    else if (tableId === 'tableSparen') {
+      // (1) Datum, (2) Betrag, (3) Notiz
+      newRow.insertCell(0).innerHTML = `<input type="date">`;
+      newRow.insertCell(1).innerHTML = `<input type="number" step="0.01" placeholder="+100 / -50">`;
+      newRow.insertCell(2).innerHTML = `<input type="text">`;
+    }
+  }
+
+  // ----------------------------
+  // MONATSSUMMEN BERECHNEN
+  // ----------------------------
+  function calculateMonthSums() {
+    let sumE = sumInputs('tableEinnahmen');
+    let sumF = sumInputs('tableFixkosten');
+    let sumV = sumInputs('tableVarKosten');
+    let sumS = sumInputs('tableSparen');
+
+    document.getElementById('sumEinnahmen').textContent  = sumE.toFixed(2);
+    document.getElementById('sumFixkosten').textContent  = sumF.toFixed(2);
+    document.getElementById('sumVarKosten').textContent  = sumV.toFixed(2);
+    document.getElementById('sumSparen').textContent     = sumS.toFixed(2);
+
+    let sumAusgaben = sumF + sumV;
+    let ueber = sumE - sumAusgaben + sumS;
+
+    document.getElementById('sumAusgaben').textContent    = sumAusgaben.toFixed(2);
+    document.getElementById('ueberschussDefizit').textContent = ueber.toFixed(2);
+  }
+
+  function resetMonthSums() {
+    document.getElementById('sumEinnahmen').textContent   = "0";
+    document.getElementById('sumFixkosten').textContent   = "0";
+    document.getElementById('sumVarKosten').textContent   = "0";
+    document.getElementById('sumSparen').textContent      = "0";
+    document.getElementById('sumAusgaben').textContent    = "0";
+    document.getElementById('ueberschussDefizit').textContent = "0";
+  }
+
+  // ----------------------------
+  // JAHRESÜBERSICHT
+  // ----------------------------
+  function updateYearOverview() {
+    // 1) yearOverviewTable leeren (alle Zeilen außer Kopf)
+    let table = document.getElementById('yearOverviewTable');
+    while (table.rows.length > 1) {
+      table.deleteRow(1);
+    }
+
+    // 2) yearFixCategoryTable leeren (außer Kopf)
+    let fixCatTable = document.getElementById('yearFixCategoryTable');
+    while (fixCatTable.rows.length > 2) {
+      fixCatTable.deleteRow(2);
+    }
+
+    // 3) yearVarCategoryTable leeren (außer Kopf)
+    let varCatTable = document.getElementById('yearVarCategoryTable');
+    while (varCatTable.rows.length > 2) {
+      varCatTable.deleteRow(2);
+    }
+
+    // Jahres-Gesamtvariablen
+    let yearE = 0, yearF = 0, yearV = 0, yearS = 0;
+
+    // Objekte zur Kategoriensumme (Fix + Variabel)
+    let fixCatSumsYear = {};
+    fixCat.forEach(c => { fixCatSumsYear[c] = 0; });
+
+    let varCatSumsYear = {};
+    varCat.forEach(c => { varCatSumsYear[c] = 0; });
+
+    // ---------------------
+    // Pro Monat summieren
+    // ---------------------
+    months.forEach(mon => {
+      let storageKey = "finanzTrackerData_" + mon;
+      let jsonData = localStorage.getItem(storageKey);
+      if (!jsonData) {
+        // Keine Daten => alles 0
+        addYearRow(table, mon, 0, 0, 0, 0, 0, 0);
+      } else {
+        let data = JSON.parse(jsonData);
+
+        // Summen (Einnahmen, Fix, Var, Sparen)
+        let sumE = sumTableData(data.einnahmen);
+        let sumF = sumTableData(data.fixkosten);
+        let sumV = sumTableData(data.varkosten);
+        let sumS = sumTableData(data.sparen);
+        let sumAusgaben = sumF + sumV;
+        let ueber = sumE - sumAusgaben + sumS;
+
+        // Zeile in der Monats-Tabelle
+        addYearRow(table, mon, sumE, sumF, sumV, sumS, sumAusgaben, ueber);
+
+        // Jahres-Gesamt addieren
+        yearE += sumE;
+        yearF += sumF;
+        yearV += sumV;
+        yearS += sumS;
+
+        // Fixkosten nach Kategorien summieren
+        if (data.fixkosten) {
+          data.fixkosten.forEach(row => {
+            // col1 => Kategorie, col3 => Betrag
+            let cat = row.col1 ? row.col1.trim() : "";
+            let val = parseFloat(row.col3);
+            if (!isNaN(val) && fixCatSumsYear.hasOwnProperty(cat)) {
+              fixCatSumsYear[cat] += val;
+            }
+          });
+        }
+
+        // Variable Kosten nach Kategorien summieren
+        if (data.varkosten) {
+          data.varkosten.forEach(row => {
+            // col1 => Kategorie, col3 => Betrag
+            let cat = row.col1 ? row.col1.trim() : "";
+            let val = parseFloat(row.col3);
+            if (!isNaN(val) && varCatSumsYear.hasOwnProperty(cat)) {
+              varCatSumsYear[cat] += val;
+            }
+          });
+        }
+      }
+    });
+
+    // Letzte Zeile GESAMT
+    let yearAusgaben = yearF + yearV;
+    let yearUeber = yearE - yearAusgaben + yearS;
+    addYearRow(table, "GESAMT", yearE, yearF, yearV, yearS, yearAusgaben, yearUeber, true);
+
+    // ---------------------
+    // Fixkosten-Kategorien ins fixCatTable
+    // ---------------------
+    for (let cat of fixCat) {
+      let val = fixCatSumsYear[cat] || 0;
+      addCategoryRow(fixCatTable, cat, val);
+    }
+
+    // ---------------------
+    // Variable-Kosten-Kategorien ins varCatTable
+    // ---------------------
+    for (let cat of varCat) {
+      let val = varCatSumsYear[cat] || 0;
+      addCategoryRow(varCatTable, cat, val);
+    }
+  }
+
+  // Neue Zeile in #yearOverviewTable
+  function addYearRow(table, monat, e, f, v, s, a, u, isTotal=false) {
+    let row = table.insertRow(-1);
+    let cellMonat = row.insertCell(0);
+    cellMonat.textContent = monat;
+    if (isTotal) {
+      cellMonat.style.fontWeight = "bold";
+    }
+
+    let cellE = row.insertCell(1);
+    cellE.textContent = e.toFixed(2);
+
+    let cellF = row.insertCell(2);
+    cellF.textContent = f.toFixed(2);
+
+    let cellV = row.insertCell(3);
+    cellV.textContent = v.toFixed(2);
+
+    let cellS = row.insertCell(4);
+    cellS.textContent = s.toFixed(2);
+
+    let cellA = row.insertCell(5);
+    cellA.textContent = a.toFixed(2);
+
+    let cellU = row.insertCell(6);
+    cellU.textContent = u.toFixed(2);
+
+    if (isTotal) {
+      row.style.backgroundColor = "#eef";
+      row.style.fontWeight = "bold";
+    }
+  }
+
+  // Neue Zeile in der Kategorien-Tabelle (Fix oder Var)
+  function addCategoryRow(catTable, categoryName, val) {
+    let row = catTable.insertRow(-1);
+    let cellCat = row.insertCell(0);
+    cellCat.textContent = categoryName;
+
+    let cellVal = row.insertCell(1);
+    cellVal.textContent = val.toFixed(2);
+  }
+
+  // ----------------------------
+  // BEZEICHNUNGSSUCHE
+  // ----------------------------
+  function calculateBezeichnungSums() {
+    let suchbegriff = document.getElementById('customBezeichnungInput').value.trim().toLowerCase();
+    if (!suchbegriff) {
+      alert("Bitte gib eine Bezeichnung ein (z.B. 'Tanken').");
+      return;
+    }
+    // 1) Im aktuellen Monat suchen
+    let monthlySum = 0;
+    monthlySum += sumByBezeichnungInTable('tableFixkosten', suchbegriff);
+    monthlySum += sumByBezeichnungInTable('tableVarKosten', suchbegriff);
+
+    document.getElementById('customBezeichnungMonthly').textContent = monthlySum.toFixed(2);
+
+    // 2) Im ganzen Jahr suchen
+    let yearlySum = 0;
+    // Alle 12 Monate durchgehen
+    months.forEach(mon => {
+      let storageKey = "finanzTrackerData_" + mon;
+      let jsonData = localStorage.getItem(storageKey);
+      if (jsonData) {
+        let data = JSON.parse(jsonData);
+        // Fixkosten
+        if (data.fixkosten) {
+          yearlySum += sumByBezeichnungInArray(data.fixkosten, suchbegriff, 2, 3);
+        }
+        // VarKosten
+        if (data.varkosten) {
+          yearlySum += sumByBezeichnungInArray(data.varkosten, suchbegriff, 2, 3);
+        }
+      }
+    });
+
+    document.getElementById('customBezeichnungYearly').textContent = yearlySum.toFixed(2);
+  }
+
+  // Summiert die Beträge in einer Tabelle, wenn "Bezeichnung"-Spalte
+  // (z. B. col2) den Suchbegriff enthält (ignoring case).
+  // Betrags-Spalte = col3 => fixkosten / varKosten Layout
+  function sumByBezeichnungInTable(tableId, suchbegriff) {
+    let table = document.getElementById(tableId);
+    let rows = table.querySelectorAll('tr');
+    let sum = 0;
+    // Start ab row=2 => da 0=Titel,1=Header
+    for (let r = 2; r < rows.length; r++) {
+      let cells = rows[r].querySelectorAll('td');
+      if (cells.length < 4) continue;  // fixkosten/var => mind. 5 Spalten
+      let bezeichnungEl = cells[2].querySelector('input[type="text"]');
+      let betragEl = cells[3].querySelector('input[type="number"]');
+      if (!bezeichnungEl || !betragEl) continue;
+
+      let text = bezeichnungEl.value.trim().toLowerCase();
+      let val = parseFloat(betragEl.value);
+      if (!isNaN(val) && text.includes(suchbegriff)) {
+        sum += val;
+      }
+    }
+    return sum;
+  }
+
+  // Summiert in einem Daten-Array (z. B. data.fixkosten),
+  // wenn row.colX (hier col2) den Suchbegriff enthält.
+  // Betrags-Spalte = col3.
+  function sumByBezeichnungInArray(rowData, suchbegriff, bezeichnungCol, betragCol) {
+    let total = 0;
+    rowData.forEach(row => {
+      let text = (row["col"+bezeichnungCol] || "").trim().toLowerCase();
+      let val = parseFloat(row["col"+betragCol]);
+      if (!isNaN(val) && text.includes(suchbegriff)) {
+        total += val;
+      }
+    });
+    return total;
+  }
+
+  // ----------------------------
+  // TABELLEN-DATEN AUS / EINLESEN
+  // ----------------------------
+  function readTableData(tableId, colCount) {
+    let table = document.getElementById(tableId);
+    let rows = table.querySelectorAll('tr');
+    let rowDataArray = [];
+
+    // Start ab index 2: (0=Titelzeile, 1=Header)
+    for (let r = 2; r < rows.length; r++) {
+      let cells = rows[r].querySelectorAll('td');
+      if (cells.length === 0) continue;
+
+      let rowObj = {};
+      for (let c = 0; c < colCount; c++) {
+        let inputEl = cells[c] && cells[c].querySelector('input, select');
+        rowObj['col' + c] = inputEl ? inputEl.value : '';
+      }
+      let isEmpty = Object.values(rowObj).every(v => v === '');
+      if (!isEmpty) {
+        rowDataArray.push(rowObj);
+      }
+    }
+    return rowDataArray;
+  }
+
+  function fillTableData(tableId, rowDataArray, colCount) {
+    let table = document.getElementById(tableId);
+    for (let i = 0; i < rowDataArray.length; i++) {
+      // Neue Zeile
+      let newRow = table.insertRow(-1);
+
+      if (tableId === 'tableEinnahmen') {
+        newRow.insertCell(0).innerHTML = `<input type="date" value="${rowDataArray[i].col0 || ''}">`;
+        newRow.insertCell(1).innerHTML = `<input type="text" value="${rowDataArray[i].col1 || ''}">`;
+        newRow.insertCell(2).innerHTML = `<input type="number" step="0.01" value="${rowDataArray[i].col2 || ''}">`;
+        newRow.insertCell(3).innerHTML = `<input type="text" value="${rowDataArray[i].col3 || ''}">`;
+      }
+      else if (tableId === 'tableFixkosten') {
+        let catOptions = fixCat.map(c => {
+          let sel = (rowDataArray[i].col1 === c) ? 'selected' : '';
+          return `<option ${sel}>${c}</option>`;
+        }).join('');
+        let selectHtml = `<select><option value="">- bitte wählen -</option>${catOptions}</select>`;
+        newRow.insertCell(0).innerHTML = `<input type="date" value="${rowDataArray[i].col0 || ''}">`;
+        newRow.insertCell(1).innerHTML = selectHtml;
+        newRow.insertCell(2).innerHTML = `<input type="text" value="${rowDataArray[i].col2 || ''}">`;
+        newRow.insertCell(3).innerHTML = `<input type="number" step="0.01" value="${rowDataArray[i].col3 || ''}">`;
+        newRow.insertCell(4).innerHTML = `<input type="text" value="${rowDataArray[i].col4 || ''}">`;
+      }
+      else if (tableId === 'tableVarKosten') {
+        let catOptions = varCat.map(c => {
+          let sel = (rowDataArray[i].col1 === c) ? 'selected' : '';
+          return `<option ${sel}>${c}</option>`;
+        }).join('');
+        let selectHtml = `<select><option value="">- bitte wählen -</option>${catOptions}</select>`;
+        newRow.insertCell(0).innerHTML = `<input type="date" value="${rowDataArray[i].col0 || ''}">`;
+        newRow.insertCell(1).innerHTML = selectHtml;
+        newRow.insertCell(2).innerHTML = `<input type="text" value="${rowDataArray[i].col2 || ''}">`;
+        newRow.insertCell(3).innerHTML = `<input type="number" step="0.01" value="${rowDataArray[i].col3 || ''}">`;
+        newRow.insertCell(4).innerHTML = `<input type="text" value="${rowDataArray[i].col4 || ''}">`;
+      }
+      else if (tableId === 'tableSparen') {
+        newRow.insertCell(0).innerHTML = `<input type="date" value="${rowDataArray[i].col0 || ''}">`;
+        newRow.insertCell(1).innerHTML = `<input type="number" step="0.01" value="${rowDataArray[i].col1 || ''}">`;
+        newRow.insertCell(2).innerHTML = `<input type="text" value="${rowDataArray[i].col2 || ''}">`;
+      }
+    }
+  }
+
+  // Löscht alle Datenzeilen (außer Kopfzeile) aus einer Tabelle
+  function clearTable(tableId, colCount) {
+    let table = document.getElementById(tableId);
+    while (table.rows.length > 2) {
+      table.deleteRow(2);
+    }
+  }
+
+  // Summiert alle input[type=number] in einer Tabelle
+  function sumInputs(tableId) {
+    let table = document.getElementById(tableId);
+    let inputs = table.querySelectorAll('tr td input[type="number"]');
+    let sum = 0;
+    inputs.forEach(inp => {
+      let val = parseFloat(inp.value);
+      if (!isNaN(val)) {
+        sum += val;
+      }
+    });
+    return sum;
+  }
+
+  // Summiert "offline" (aus localStorage) alle Beträge,
+  // indem wir parseFloat auf jede "colX" versuchen.
+  function sumTableData(rowData) {
+    if (!rowData) return 0;
+    let sum = 0;
+    rowData.forEach(row => {
+      for (let key in row) {
+        if (row.hasOwnProperty(key)) {
+          let val = parseFloat(row[key]);
+          if (!isNaN(val)) {
+            sum += val;
+          }
+        }
+      }
+    });
+    return sum;
+  }
+</script>
+
+</body>
+</html>
